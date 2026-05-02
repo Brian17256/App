@@ -3,8 +3,7 @@ const STORAGE_KEY = 'habitflow_data';
 const MS_PER_DAY = 86400000;
 
 let state = {
-    habits: [],
-    simOffset: 0 // in days
+    habits: []
 };
 
 // Initialize App
@@ -26,8 +25,8 @@ function loadData() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
         state = JSON.parse(saved);
-        // Ensure legacy data or missing fields are handled
-        if (!state.simOffset) state.simOffset = 0;
+        // Clean up legacy simOffset if it exists in the saved object
+        if (state.simOffset !== undefined) delete state.simOffset;
     }
 }
 
@@ -38,53 +37,26 @@ function saveData() {
 // UI Elements
 const habitList = document.getElementById('habit-list');
 const addBtn = document.getElementById('add-habit-btn');
-const settingsBtn = document.getElementById('settings-btn');
 const overlay = document.getElementById('modal-overlay');
 const habitModal = document.getElementById('habit-modal');
-const settingsModal = document.getElementById('settings-modal');
 const cancelModal = document.getElementById('cancel-modal');
 const saveHabitBtn = document.getElementById('save-habit');
-const closeSettingsBtn = document.getElementById('close-settings');
 
 // Modal State
 let editingHabitId = null;
+let isProcessingFallo = false;
 
 // Event Listeners
 function setupEventListeners() {
     addBtn.onclick = () => openHabitModal();
-    settingsBtn.onclick = () => openSettingsModal();
     cancelModal.onclick = closeModal;
-    closeSettingsBtn.onclick = closeModal;
     overlay.onclick = (e) => { if (e.target === overlay) closeModal(); };
 
     saveHabitBtn.onclick = handleSaveHabit;
     document.getElementById('reset-habit').onclick = () => {
         if (confirm('¿Resetear el contador de este hábito a 0?')) {
             const habit = state.habits.find(h => h.id === editingHabitId);
-            habit.startTime = Date.now() + (state.simOffset * MS_PER_DAY);
-            saveData();
-            renderHabits();
-            closeModal();
-        }
-    };
-
-    // Simulation controls
-    document.getElementById('sim-plus').onclick = () => {
-        state.simOffset++;
-        updateSimDisplay();
-        saveData();
-        renderHabits();
-    };
-    document.getElementById('sim-minus').onclick = () => {
-        state.simOffset = Math.max(0, state.simOffset - 1);
-        updateSimDisplay();
-        saveData();
-        renderHabits();
-    };
-
-    document.getElementById('reset-all').onclick = () => {
-        if (confirm('¿Estás seguro de que quieres borrar TODOS los hábitos?')) {
-            state.habits = [];
+            habit.startTime = Date.now();
             saveData();
             renderHabits();
             closeModal();
@@ -118,26 +90,13 @@ function openHabitModal(habitId = null) {
 
     overlay.classList.remove('hidden');
     habitModal.classList.remove('hidden');
-    settingsModal.classList.add('hidden');
     nameInput.focus();
-}
-
-function openSettingsModal() {
-    overlay.classList.remove('hidden');
-    settingsModal.classList.remove('hidden');
-    habitModal.classList.add('hidden');
-    updateSimDisplay();
 }
 
 function closeModal() {
     overlay.classList.add('hidden');
     habitModal.classList.add('hidden');
-    settingsModal.classList.add('hidden');
     editingHabitId = null;
-}
-
-function updateSimDisplay() {
-    document.getElementById('sim-days-display').innerText = state.simOffset;
 }
 
 // Logic Handlers
@@ -147,21 +106,18 @@ function handleSaveHabit() {
     if (!name) return alert('Por favor ingresa un nombre');
 
     const now = Date.now();
-    const offsetMs = state.simOffset * MS_PER_DAY;
     
     if (editingHabitId) {
         const index = state.habits.findIndex(h => h.id === editingHabitId);
         state.habits[index].name = name;
         
-        // If manual days edited, adjust startTime
-        // days = floor((now + simOffset - startTime) / MS_PER_DAY)
-        // startTime = (now + simOffset) - (days * MS_PER_DAY)
-        state.habits[index].startTime = (now + offsetMs) - (manualDays * MS_PER_DAY);
+        // Manual adjustment of days
+        state.habits[index].startTime = now - (manualDays * MS_PER_DAY);
     } else {
         const newHabit = {
             id: Date.now().toString(),
             name: name,
-            startTime: now + offsetMs,
+            startTime: now,
             lastFalloAt: 0,
             streak: 0,
             order: state.habits.length
@@ -175,11 +131,13 @@ function handleSaveHabit() {
 }
 
 function handleFallo(id) {
+    if (isProcessingFallo) return;
+    isProcessingFallo = true;
+
     const habit = state.habits.find(h => h.id === id);
-    const now = Date.now() + (state.simOffset * MS_PER_DAY);
+    const now = Date.now();
     const daysCompleted = calculateDays(habit);
 
-    // Update Streak Label logic
     // Penalty logic:
     let penalty = 0;
     if (habit.lastFalloAt > 0) {
@@ -192,32 +150,11 @@ function handleFallo(id) {
         else if (diffHours < 96) penalty = 1;
     }
 
-    // New streak is the one they reached before falling
-    // But wait, the user said "al presionar ese boton habra un texto que diga racha: el cual registrara la racha que lleve hasta el momento"
-    // And "si presiono el boton de fallo cuando llevo 5 dias pues entonces el texto dira racha: 5"
-    // "si presiono el boton al siguiente dia... disminuye la racha en tres"
-    
-    // Logic: 
-    // 1. Current streak becomes the days we just reached.
-    // 2. Apply penalty based on time since LAST failure.
-    
-    let baseStreak = daysCompleted;
-    habit.streak = Math.max(0, habit.streak + baseStreak - penalty); 
-    // Actually, usually streak means the highest reached or cumulative with penalties.
-    // User says: "si presiono fallo cuando llevo 5 pues racha: 5. Si luego 7... racha: 7 (or total?)"
-    // Looking at "disminuira en 4... si tenia 5... me quedaria un solo dia de racha".
-    // This implies the streak is a stored value that accumulates or updates.
-    
-    // Let's stick to the user's specific penalty math:
-    // currentStreak = habit.streak (the one saved)
-    // if I fail at 5 days, I had 5 days. 
-    // The user's example: "si presiono... cuando llevo 5... racha: 5".
-    // This means the "Racha" displayed is what I just lost? 
-    // No, "si despues duro 7... racha: 7". It seems it's the "Record" or the "Last streak".
-    // BUT the penalty logic "disminuira en 4... si tenia 5... me quedaria 1" means the Streak is a persistent score.
-    
-    // Correct interpretation of "Racha" persistent score:
-    habit.streak = Math.max(0, habit.streak + daysCompleted - penalty);
+    // Streak logic fix:
+    // We update the streak to be either the new count (if we made progress) 
+    // or we subtract the penalty from the existing streak.
+    const baseForStreak = Math.max(habit.streak, daysCompleted);
+    habit.streak = Math.max(0, baseForStreak - penalty);
 
     habit.lastFalloAt = now;
     habit.startTime = now; // Reset counter
@@ -226,14 +163,20 @@ function handleFallo(id) {
     
     // Animation
     const card = document.querySelector(`[data-id="${id}"]`);
-    card.classList.add('reset-animation');
-    setTimeout(() => {
+    if (card) {
+        card.classList.add('reset-animation');
+        setTimeout(() => {
+            renderHabits();
+            isProcessingFallo = false;
+        }, 500);
+    } else {
         renderHabits();
-    }, 500);
+        isProcessingFallo = false;
+    }
 }
 
 function calculateDays(habit) {
-    const now = Date.now() + (state.simOffset * MS_PER_DAY);
+    const now = Date.now();
     const diff = now - habit.startTime;
     return Math.max(0, Math.floor(diff / MS_PER_DAY));
 }
