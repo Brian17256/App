@@ -368,3 +368,7 @@ header h1 span {
     .day-counter { font-size: 4rem; }
     #app { padding: 15px; }
 }
+
+html {
+    background-color: #000000;
+}
