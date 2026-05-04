@@ -1,72 +1,88 @@
-/* Fuerza el negro absoluto incluso en las zonas de sistema */
 :root {
     --bg-color: #000000;
+    --card-bg: #111111;
     --accent: #00FFA3;
+    --text: #FFFFFF;
+    --text-dim: #888888;
+    --danger: #FF3D00;
 }
 
-html {
-    background-color: #000000 !important;
-    /* Evita el rebote elástico que a veces muestra blanco */
-    overscroll-behavior: none;
-}
-
-body {
-    background-color: #000000 !important;
+html, body {
+    background-color: var(--bg-color) !important;
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
     margin: 0;
     padding: 0;
-    /* Usamos min-height para asegurar que cubra todo */
     min-height: 100vh;
-    /* Fix para barras de navegación en móviles modernos */
-    min-height: -webkit-fill-available;
-    display: flex;
-    flex-direction: column;
-    color: white;
-    font-family: 'Outfit', sans-serif;
+    overflow-x: hidden;
 }
 
 #app {
-    flex: 1;
-    background-color: #000000 !important;
-    /* Añadimos un padding extra al fondo para "teñir" la zona de la franja */
-    padding-bottom: 50px; 
+    padding: 20px;
+    max-width: 500px;
+    margin: 0 auto;
+    padding-bottom: 100px; /* Espacio para el botón + */
 }
 
-
-/* Encabezado */
+/* --- ENCABEZADO Y TUERCA --- */
 header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 30px;
+    padding-top: 10px;
 }
 
 h1 { font-weight: 800; font-size: 1.8rem; margin: 0; }
 h1 span { color: var(--accent); }
 
-/* Tarjetas */
-.habit-card {
-    background: var(--card-bg);
-    border-radius: 24px;
-    padding: 20px;
-    margin-bottom: 20px;
-    border: 1px solid #222;
+.icon-btn {
+    background: none;
+    border: none;
+    color: var(--text);
+    padding: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
 }
 
+.icon-btn svg { width: 24px; height: 24px; stroke: var(--text); }
+
+/* --- TARJETAS DE HÁBITOS --- */
+.habit-card {
+    background: var(--card-bg);
+    border-radius: 28px;
+    padding: 24px;
+    margin-bottom: 20px;
+    border: 1px solid #222;
+    position: relative;
+}
+
+.habit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.habit-info h3 { margin: 0; font-size: 1.2rem; }
+.habit-info p { color: var(--text-dim); margin: 4px 0 0; font-size: 0.8rem; }
+
 .day-counter {
-    font-size: 5rem;
+    font-size: 5.5rem;
     font-weight: 800;
     color: var(--accent);
     text-align: center;
     line-height: 1;
+    margin: 10px 0;
 }
 
 .day-label {
     text-align: center;
     text-transform: uppercase;
-    letter-spacing: 2px;
+    letter-spacing: 3px;
     color: var(--text-dim);
-    font-size: 0.8rem;
-    margin-bottom: 10px;
+    font-size: 0.75rem;
 }
 
 .live-clock {
@@ -74,53 +90,78 @@ h1 span { color: var(--accent); }
     font-family: monospace;
     color: #00E0FF;
     font-size: 1.1rem;
+    margin-top: 5px;
 }
 
-/* Botón Fallo */
+/* --- BOTONES DE ACCIÓN EN TARJETA --- */
+.card-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    align-items: center;
+}
+
 .btn-fallo {
-    background: #FF3D00;
+    flex: 1;
+    background: var(--danger);
     color: white;
     border: none;
-    padding: 15px;
-    border-radius: 12px;
-    width: 100%;
-    font-weight: bold;
-    margin-top: 15px;
+    padding: 16px;
+    border-radius: 16px;
+    font-weight: 800;
+    font-size: 1rem;
+    text-transform: uppercase;
 }
 
-/* Modales (Para que no se vean siempre) */
-.hidden { display: none !important; }
+.btn-edit, .btn-delete {
+    background: #222;
+    border: none;
+    padding: 12px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+}
 
+.btn-edit svg { stroke: var(--text-dim); width: 20px; }
+.btn-delete svg { stroke: var(--danger); width: 20px; }
+
+/* --- MODALES --- */
 .overlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.9);
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(5px);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: 2000;
 }
 
 .modal {
-    background: #1a1a1a;
-    padding: 25px;
-    border-radius: 24px;
-    width: 90%;
-    max-width: 400px;
+    background: #161616;
+    padding: 30px;
+    border-radius: 32px;
+    width: 85%;
+    max-width: 380px;
+    border: 1px solid #333;
 }
 
-/* Botón flotante */
+.hidden { display: none !important; }
+
+/* --- BOTÓN FLOTANTE (+) --- */
 .fab {
     position: fixed;
     bottom: 30px;
     right: 30px;
     background: var(--accent);
     border: none;
-    width: 60px;
-    height: 60px;
-    border-radius: 30px;
+    width: 65px;
+    height: 65px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 15px rgba(0,255,163,0.3);
+    box-shadow: 0 8px 25px rgba(0,255,163,0.4);
 }
+
+.fab svg { width: 30px; height: 30px; stroke: #000; }
