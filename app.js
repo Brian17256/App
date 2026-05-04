@@ -1,4 +1,3 @@
-// HabitFlow AMOLED - Logic Optimized
 const STORAGE_KEY = 'habitflow_data';
 const MS_PER_DAY = 86400000;
 
@@ -12,11 +11,26 @@ function init() {
     setupEventListeners();
     renderHabits();
     
-    // Solo actualiza los relojes, no redibuja las tarjetas (evita parpadeo)
     setInterval(updateLiveClocks, 1000);
 
+    // LÓGICA DE ACTUALIZACIÓN AUTOMÁTICA
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js');
+        navigator.serviceWorker.register('sw.js').then(reg => {
+            // Le pide al navegador que revise si el sw.js en GitHub ha cambiado
+            reg.update();
+
+            reg.onupdatefound = () => {
+                const newWorker = reg.installing;
+                newWorker.onstatechange = () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        // Si hay cambios, lanza el aviso
+                        if (confirm('Hay una nueva versión disponible. ¿Deseas actualizar ahora?')) {
+                            window.location.reload();
+                        }
+                    }
+                };
+            };
+        });
     }
 }
 
@@ -50,7 +64,6 @@ function openHabitModal(habitId = null) {
     const daysInput = document.getElementById('habit-days');
     const title = document.getElementById('modal-title');
 
-    // Ocultar otros modales para que no se encimen
     document.getElementById('sim-modal').classList.add('hidden');
 
     if (habitId) {
@@ -169,7 +182,6 @@ function updateLiveClocks() {
 }
 
 function openSimModal() {
-    // Ocultar modal de hábitos si está abierto
     document.getElementById('habit-modal').classList.add('hidden');
     document.getElementById('modal-overlay').classList.remove('hidden');
     document.getElementById('sim-modal').classList.remove('hidden');
