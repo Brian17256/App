@@ -2,9 +2,11 @@ const STORAGE_KEY = 'habitflow_data';
 const MS_PER_DAY = 86400000;
 
 let state = { habits: [] };
+let tempState = null; // Copia para el simulador
 let simOffsetDays = 0;
 let isProcessingFallo = false;
 let editingHabitId = null;
+let isSimulating = false;
 
 function init() {
     loadData();
@@ -13,17 +15,13 @@ function init() {
     
     setInterval(updateLiveClocks, 1000);
 
-    // LÓGICA DE ACTUALIZACIÓN AUTOMÁTICA
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').then(reg => {
-            // Le pide al navegador que revise si el sw.js en GitHub ha cambiado
             reg.update();
-
             reg.onupdatefound = () => {
                 const newWorker = reg.installing;
                 newWorker.onstatechange = () => {
                     if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        // Si hay cambios, lanza el aviso
                         if (confirm('Hay una nueva versión disponible. ¿Deseas actualizar ahora?')) {
                             window.location.reload();
                         }
@@ -38,12 +36,14 @@ function loadData() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
         state = JSON.parse(saved);
-        if (state.simOffset !== undefined) delete state.simOffset;
     }
 }
 
 function saveData() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    // IMPORTANTE: Si estamos simulando, NO guardamos nada en el disco real
+    if (!isSimulating) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
 }
 
 function setupEventListeners() {
@@ -58,6 +58,8 @@ function setupEventListeners() {
 }
 
 function openHabitModal(habitId = null) {
+    if (isSimulating) return alert("Sal del simulador para editar hábitos.");
+    
     editingHabitId = habitId;
     const nameInput = document.getElementById('habit-name');
     const manualGroup = document.getElementById('manual-edit-group');
@@ -102,6 +104,7 @@ function handleSaveHabit() {
         const index = state.habits.findIndex(h => h.id === editingHabitId);
         state.habits[index].name = name;
         state.habits[index].startTime = now - (manualDays * MS_PER_DAY);
+        state.habits[index].streak = manualDays; // Al editar manualmente, la racha se sincroniza
         state.habits[index].maxStreak = Math.max(state.habits[index].maxStreak || 0, manualDays);
     } else {
         const newHabit = {
@@ -109,7 +112,7 @@ function handleSaveHabit() {
             name: name,
             startTime: now - (manualDays * MS_PER_DAY),
             lastFalloAt: 0,
-            streak: 0,
+            streak: manualDays,
             maxStreak: manualDays,
             order: state.habits.length
         };
@@ -125,10 +128,19 @@ function handleFallo(id) {
     if (isProcessingFallo) return;
     isProcessingFallo = true;
 
-    const habit = state.habits.find(h => h.id === id);
-    const now = Date.now();
-    const daysCompleted = calculateDays(habit);
+    // Elegimos el estado actual (Real o Simulación)
+    const currentState = isSimulating ? tempState : state;
+    const habit = currentState.habits.find(h => h.id === id);
+    const now = Date.now() + (simOffsetDays * MS_PER_DAY);
+    
+    // 1. Calculamos el total acumulado REAL (Racha guardada + Días del reloj actual)
+    const diasDelReloj = calculateDays(habit);
+    const totalAcumulado = (habit.streak || 0) + diasDelReloj;
+    
+    // 2. Actualizamos el Récord Histórico
+    habit.maxStreak = Math.max(habit.maxStreak || 0, totalAcumulado);
 
+    // 3. Lógica de Penalización (Solo si hubo un fallo reciente)
     let penalty = 0;
     if (habit.lastFalloAt > 0) {
         const diffHours = (now - habit.lastFalloAt) / (1000 * 60 * 60);
@@ -136,13 +148,16 @@ function handleFallo(id) {
         else if (diffHours < 48) penalty = 3;
         else if (diffHours < 72) penalty = 2;
         else if (diffHours < 96) penalty = 1;
+        // Si han pasado > 96 horas, penalty es 0 (Escudo activo)
     }
 
-    const baseForStreak = Math.max(habit.streak || 0, daysCompleted);
-    habit.maxStreak = Math.max(habit.maxStreak || 0, baseForStreak);
-    habit.streak = Math.max(0, baseForStreak - penalty);
+    // 4. Aplicamos el resultado
+    // Si es el primer fallo en mucho tiempo, totalAcumulado se mantiene pero el reloj va a 0
+    habit.streak = Math.max(0, totalAcumulado - penalty);
+    
+    // 5. Reiniciamos los puntos de control
+    habit.startTime = now; 
     habit.lastFalloAt = now;
-    habit.startTime = now;
 
     saveData();
     
@@ -166,7 +181,9 @@ function calculateDays(habit) {
 }
 
 function formatClock(startTime) {
-    const diff = Date.now() - startTime;
+    // El reloj visual también responde al simulador para que puedas ver los cambios
+    const now = Date.now() + (simOffsetDays * MS_PER_DAY);
+    const diff = now - startTime;
     if (diff < 0) return "00:00:00";
     const h = Math.floor(diff / 3600000);
     const m = Math.floor((diff % 3600000) / 60000);
@@ -175,21 +192,32 @@ function formatClock(startTime) {
 }
 
 function updateLiveClocks() {
-    state.habits.forEach(habit => {
+    const currentState = isSimulating ? tempState : state;
+    currentState.habits.forEach(habit => {
         const clockEl = document.querySelector(`[data-id="${habit.id}"] .live-clock`);
         if (clockEl) clockEl.innerText = formatClock(habit.startTime);
     });
 }
 
 function openSimModal() {
+    isSimulating = true;
+    // Creamos una copia profunda para no ensuciar los datos reales
+    tempState = JSON.parse(JSON.stringify(state));
+    simOffsetDays = 0;
+    
     document.getElementById('habit-modal').classList.add('hidden');
     document.getElementById('modal-overlay').classList.remove('hidden');
     document.getElementById('sim-modal').classList.remove('hidden');
+    document.getElementById('sim-days-val').innerText = '0';
+    renderHabits();
 }
 
 function closeSimModal() {
+    isSimulating = false;
+    tempState = null;
     simOffsetDays = 0;
-    document.getElementById('sim-days-val').innerText = '0';
+    
+    loadData(); // Volvemos a cargar la realidad del localStorage
     closeModal();
     renderHabits();
 }
@@ -201,6 +229,7 @@ function adjustSim(amount) {
 }
 
 function deleteHabit(id) {
+    if (isSimulating) return;
     if (confirm('¿Borrar este hábito?')) {
         state.habits = state.habits.filter(h => h.id !== id);
         saveData();
@@ -209,6 +238,7 @@ function deleteHabit(id) {
 }
 
 function moveHabit(id, direction) {
+    if (isSimulating) return;
     const index = state.habits.findIndex(h => h.id === id);
     if (direction === 'up' && index > 0) {
         [state.habits[index], state.habits[index - 1]] = [state.habits[index - 1], state.habits[index]];
@@ -223,28 +253,32 @@ function renderHabits() {
     const habitList = document.getElementById('habit-list');
     habitList.innerHTML = '';
     
-    if (state.habits.length === 0) {
-        habitList.innerHTML = `<div style="text-align: center; color: var(--text-dim); margin-top: 50px;"><p>No hay hábitos aún.</p><p>Presiona + para comenzar.</p></div>`;
+    const currentState = isSimulating ? tempState : state;
+    
+    if (currentState.habits.length === 0) {
+        habitList.innerHTML = `<div style="text-align: center; color: var(--text-dim); margin-top: 50px;"><p>No hay hábitos aún.</p></div>`;
         return;
     }
 
-    state.habits.forEach((habit, index) => {
+    currentState.habits.forEach((habit, index) => {
         const days = calculateDays(habit);
         const card = document.createElement('div');
         card.className = 'habit-card';
+        if (isSimulating) card.style.border = "1px dashed var(--primary)";
+        
         card.dataset.id = habit.id;
         card.innerHTML = `
             <div class="habit-header">
                 <div class="habit-name-container">
                     <span class="streak-label">Racha: ${habit.streak || 0}</span>
-                    <span class="habit-name">${habit.name}</span>
+                    <span class="habit-name">${habit.name} ${isSimulating ? '🧪' : ''}</span>
                     <span class="record-label">Record: ${habit.maxStreak || 0}</span>
                 </div>
                 <div class="habit-options">
-                    <button class="icon-btn" onclick="moveHabit('${habit.id}', 'up')" ${index === 0 ? 'disabled style="opacity:0.2"' : ''}>
+                    <button class="icon-btn" onclick="moveHabit('${habit.id}', 'up')" ${(index === 0 || isSimulating) ? 'disabled style="opacity:0.2"' : ''}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
                     </button>
-                    <button class="icon-btn" onclick="moveHabit('${habit.id}', 'down')" ${index === state.habits.length - 1 ? 'disabled style="opacity:0.2"' : ''}>
+                    <button class="icon-btn" onclick="moveHabit('${habit.id}', 'down')" ${(index === currentState.habits.length - 1 || isSimulating) ? 'disabled style="opacity:0.2"' : ''}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
                     </button>
                 </div>
@@ -256,10 +290,10 @@ function renderHabits() {
             </div>
             <div class="habit-footer">
                 <button class="btn-fallo" onclick="handleFallo('${habit.id}')">FALLO</button>
-                <button class="btn-edit" onclick="openHabitModal('${habit.id}')">
+                <button class="btn-edit" onclick="openHabitModal('${habit.id}')" ${isSimulating ? 'disabled style="opacity:0.2"' : ''}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 </button>
-                <button class="btn-edit" onclick="deleteHabit('${habit.id}')" style="color: var(--danger)">
+                <button class="btn-edit" onclick="deleteHabit('${habit.id}')" style="color: var(--danger)" ${isSimulating ? 'disabled style="opacity:0.2"' : ''}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
                 </button>
             </div>`;
