@@ -1,36 +1,122 @@
 :root {
     --bg-color: #000000;
-    --card-bg: #121212;
-    --accent-primary: #00FFA3;
-    --accent-secondary: #00E0FF;
-    --danger: #FF3D00;
-    --text-main: #FFFFFF;
+    --card-bg: #111111;
+    --accent: #00FFA3;
+    --text: #FFFFFF;
     --text-dim: #888888;
-    --radius: 20px;
-    --font-main: 'Outfit', sans-serif;
 }
 
-/* FUERZA EL NEGRO EN TODO EL CONTENEDOR */
-html, body {
+/* Base y solución para la franja */
+html {
     background-color: #000000 !important;
-    color: var(--text-main);
-    font-family: var(--font-main);
+}
+
+body {
+    background-color: #000000 !important;
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
     margin: 0;
-    padding: 0;
-    height: 100vh;
-    width: 100vw;
-    overflow-x: hidden;
-    /* Esto intenta empujar el contenido debajo de la franja blanca */
-    padding-bottom: env(safe-area-inset-bottom);
+    min-height: 100vh;
+    /* Esto fuerza a la app a usar el espacio de la barra de navegación */
+    padding-bottom: env(safe-area-inset-bottom); 
+    display: flex;
+    flex-direction: column;
 }
 
 #app {
-    background-color: #000000 !important;
-    min-height: 100vh;
-    max-width: 500px;
-    margin: 0 auto;
     padding: 20px;
-    padding-top: env(safe-area-inset-top, 20px);
+    flex: 1;
 }
 
-/* ... (el resto de tus estilos de tarjetas y botones se mantienen igual) ... */
+/* Encabezado */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+h1 { font-weight: 800; font-size: 1.8rem; margin: 0; }
+h1 span { color: var(--accent); }
+
+/* Tarjetas */
+.habit-card {
+    background: var(--card-bg);
+    border-radius: 24px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid #222;
+}
+
+.day-counter {
+    font-size: 5rem;
+    font-weight: 800;
+    color: var(--accent);
+    text-align: center;
+    line-height: 1;
+}
+
+.day-label {
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    margin-bottom: 10px;
+}
+
+.live-clock {
+    text-align: center;
+    font-family: monospace;
+    color: #00E0FF;
+    font-size: 1.1rem;
+}
+
+/* Botón Fallo */
+.btn-fallo {
+    background: #FF3D00;
+    color: white;
+    border: none;
+    padding: 15px;
+    border-radius: 12px;
+    width: 100%;
+    font-weight: bold;
+    margin-top: 15px;
+}
+
+/* Modales (Para que no se vean siempre) */
+.hidden { display: none !important; }
+
+.overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal {
+    background: #1a1a1a;
+    padding: 25px;
+    border-radius: 24px;
+    width: 90%;
+    max-width: 400px;
+}
+
+/* Botón flotante */
+.fab {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: var(--accent);
+    border: none;
+    width: 60px;
+    height: 60px;
+    border-radius: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(0,255,163,0.3);
+}
