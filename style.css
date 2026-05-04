@@ -1,32 +1,36 @@
+/* Fuerza el negro absoluto incluso en las zonas de sistema */
 :root {
     --bg-color: #000000;
-    --card-bg: #111111;
     --accent: #00FFA3;
-    --text: #FFFFFF;
-    --text-dim: #888888;
 }
 
-/* Base y solución para la franja */
 html {
     background-color: #000000 !important;
+    /* Evita el rebote elástico que a veces muestra blanco */
+    overscroll-behavior: none;
 }
 
 body {
     background-color: #000000 !important;
-    color: var(--text);
-    font-family: 'Outfit', sans-serif;
     margin: 0;
+    padding: 0;
+    /* Usamos min-height para asegurar que cubra todo */
     min-height: 100vh;
-    /* Esto fuerza a la app a usar el espacio de la barra de navegación */
-    padding-bottom: env(safe-area-inset-bottom); 
+    /* Fix para barras de navegación en móviles modernos */
+    min-height: -webkit-fill-available;
     display: flex;
     flex-direction: column;
+    color: white;
+    font-family: 'Outfit', sans-serif;
 }
 
 #app {
-    padding: 20px;
     flex: 1;
+    background-color: #000000 !important;
+    /* Añadimos un padding extra al fondo para "teñir" la zona de la franja */
+    padding-bottom: 50px; 
 }
+
 
 /* Encabezado */
 header {
