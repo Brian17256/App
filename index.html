@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>HabitFlow AMOLED</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
@@ -25,18 +25,14 @@
         </header>
 
         <main id="habit-list-container">
-            <div id="habit-list" class="habit-list">
-                <!-- Habits will be injected here -->
-            </div>
+            <div id="habit-list" class="habit-list"></div>
         </main>
 
         <button id="add-habit-btn" class="fab" aria-label="Agregar hábito">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
 
-        <!-- Modals -->
         <div id="modal-overlay" class="overlay hidden">
-            <!-- Modal: Add/Edit Habit -->
             <div id="habit-modal" class="modal hidden">
                 <h2 id="modal-title">Nuevo Hábito</h2>
                 <div class="input-group">
@@ -45,7 +41,7 @@
                 </div>
                 <div id="manual-edit-group" class="input-group hidden">
                     <label for="habit-days">Días actuales (Manual)</label>
-                    <input type="number" id="habit-days" value="0" min="0" onfocus="if(this.value=='0')this.value=''" onblur="if(this.value=='')this.value='0'">
+                    <input type="number" id="habit-days" value="0" min="0">
                 </div>
                 <div class="modal-actions">
                     <button id="cancel-modal" class="btn btn-secondary">Cancelar</button>
@@ -53,10 +49,9 @@
                 </div>
             </div>
 
-            <!-- Modal: Simulator -->
             <div id="sim-modal" class="modal hidden">
                 <h2>Simulador de Tiempo</h2>
-                <p class="hint" style="margin-bottom: 20px;">Adelanta el tiempo para probar la lógica de la aplicación. Esto no afectará los datos reales permanentemente al cerrar.</p>
+                <p class="hint">Adelanta el tiempo para probar la lógica.</p>
                 <div class="input-group">
                     <label for="sim-days">Días a adelantar</label>
                     <div class="counter-input">
@@ -66,12 +61,11 @@
                     </div>
                 </div>
                 <div class="modal-actions">
-                    <button id="close-sim" class="btn btn-primary">Terminar Simulación</button>
+                    <button id="close-sim" class="btn btn-primary">Terminar</button>
                 </div>
             </div>
         </div>
     </div>
-
     <script src="app.js"></script>
 </body>
 </html>
